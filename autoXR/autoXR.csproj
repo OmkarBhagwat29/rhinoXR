@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net48-windows;net7.0-windows</TargetFrameworks>
+    <Version>1.0</Version>
+    <Title>autoXR</Title>
+    <Description>Description of autoXR</Description>
+    <TargetExt>.rhp</TargetExt>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="EmbeddedResources\**\*" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="RhinoCommon" Version="8.2.23346.13001" IncludeAssets="compile;build" />
+    <PackageReference Include="SocketIOClient" Version="3.1.1" />
+  </ItemGroup>
+  
+</Project>
