@@ -16,8 +16,11 @@ public abstract class SocketCommand : Command
     //ssh -i om.pem ubuntu@15.206.149.105
     //pkill -f "nodemon index.js"
     public static SocketIOClient.SocketIO _socket;
-    public static string JsonObjectData = null;
-    public const string emmitKey = "doc";
+    public static string JsonGeometry = null;
+    public static string JsonAttributes = null;
+
+    public const string geometryAddKey = "geometry_added";
+
 
     static bool _deleteObjectRegistered = false; 
 
@@ -38,25 +41,16 @@ public abstract class SocketCommand : Command
         SerializationOptions options = new SerializationOptions()
         { 
         };
-        JsonObjectData = e.TheObject.Geometry.ToJSON(options);
+        JsonGeometry = e.TheObject.Geometry.ToJSON(options);
+        JsonAttributes = e.TheObject.Attributes.ToJSON(options);
 
     }
 
-    static void SetBytes(RhinoModifyObjectAttributesEventArgs e)
+    public static void EmitBuffer(string emitKeyName = geometryAddKey)
     {
-        // get the object
-        e.RhinoObject.Attributes = e.NewAttributes;
-        SerializationOptions options = new SerializationOptions()
+        if (JsonGeometry != null)
         {
-        };
 
-        JsonObjectData = e.RhinoObject.ToJSON(options);
-    }
-
-    public static void EmitBuffer(string emitKeyName = emmitKey)
-    {
-        if (JsonObjectData != null)
-        {
             try
             {
                 Task.Run(async () => {
@@ -64,7 +58,17 @@ public abstract class SocketCommand : Command
                     if (_socket.Connected)
                     {
 
-                        await _socket.EmitAsync(emitKeyName, JsonObjectData);
+                        if (JsonAttributes != null)
+                        {
+                            await _socket.EmitAsync(emitKeyName, JsonGeometry + "_AUTO_" + JsonAttributes);
+                        }
+                        else
+                        {
+                            await _socket.EmitAsync(emitKeyName, JsonGeometry);
+                        }
+
+
+
                         RhinoApp.WriteLine($"Geometry Sent!");
 
                         File.Delete(filePath);
@@ -127,15 +131,15 @@ public abstract class SocketCommand : Command
     public static void RhinoDoc_ModifyObjectAttributes(object sender, Rhino.DocObjects.RhinoModifyObjectAttributesEventArgs e)
     {
 
-            SetBytes(e);
-            EmitBuffer();
+            //SetBytes(e);
+            //EmitBuffer();
 
     }
 
     public static void RhinoDoc_DeleteRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
     {
-            SetBytes(e);
-            EmitBuffer();
+            //SetBytes(e);
+            //EmitBuffer();
     }
 
     public static void RhinoDoc_BeforeTransformObjects(object sender,
