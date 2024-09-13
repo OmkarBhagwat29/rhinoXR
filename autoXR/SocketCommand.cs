@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 public abstract class SocketCommand : Command
 {
-    public static string host = "http://13.200.235.95:3001";
+    public static string host = "http://localhost:3001";
     //15.206.149.105
     //ssh -i om.pem ubuntu@15.206.149.105
     //pkill -f "nodemon index.js"
