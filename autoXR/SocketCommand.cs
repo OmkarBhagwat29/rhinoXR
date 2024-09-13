@@ -7,6 +7,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Rhino.DocObjects;
+using System.Linq;
 
 public abstract class SocketCommand : Command
 {
@@ -15,7 +16,7 @@ public abstract class SocketCommand : Command
     //ssh -i om.pem ubuntu@15.206.149.105
     //pkill -f "nodemon index.js"
     public static SocketIOClient.SocketIO _socket;
-    public static byte[] buffer;
+    public static string JsonObjectData = null;
     public const string emmitKey = "doc";
 
     static bool _deleteObjectRegistered = false; 
@@ -34,11 +35,10 @@ public abstract class SocketCommand : Command
     static void SetBytes(RhinoObjectEventArgs e)
     {
         // e.TheObject
-        if (File3dm.WriteOneObject(filePath, e.TheObject.Geometry))
-        {
-            var rhFile = File3dm.Read(filePath);
-            buffer = rhFile.ToByteArray();
-        }
+        SerializationOptions options = new SerializationOptions()
+        { 
+        };
+        JsonObjectData = e.TheObject.Geometry.ToJSON(options);
 
     }
 
@@ -46,17 +46,16 @@ public abstract class SocketCommand : Command
     {
         // get the object
         e.RhinoObject.Attributes = e.NewAttributes;
-        if (File3dm.WriteOneObject(filePath, e.RhinoObject.Geometry))
+        SerializationOptions options = new SerializationOptions()
         {
-            var rhFile = File3dm.Read(filePath);
-            buffer = rhFile.ToByteArray();
-        }
+        };
 
+        JsonObjectData = e.RhinoObject.ToJSON(options);
     }
 
     public static void EmitBuffer(string emitKeyName = emmitKey)
     {
-        if (buffer != null)
+        if (JsonObjectData != null)
         {
             try
             {
@@ -64,8 +63,8 @@ public abstract class SocketCommand : Command
                     await _socket.ConnectAsync();
                     if (_socket.Connected)
                     {
-                        string base64Data = Convert.ToBase64String(buffer);
-                        await _socket.EmitAsync(emitKeyName, base64Data);
+
+                        await _socket.EmitAsync(emitKeyName, JsonObjectData);
                         RhinoApp.WriteLine($"Geometry Sent!");
 
                         File.Delete(filePath);
@@ -78,15 +77,23 @@ public abstract class SocketCommand : Command
                 RhinoApp.WriteLine(e.Message);
             }
 
-            _socket.On("offMe", async (data) => {
+            try
+            {
+                _socket.On("offMe", async (data) => {
 
-                if (!_socket.Connected)
-                    return;
+                    if (!_socket.Connected)
+                        return;
 
-                //disconnect
-                //RhinoApp.WriteLine("disconnected");
-                await _socket.DisconnectAsync();
-            });
+                    //disconnect
+                    //RhinoApp.WriteLine("disconnected");
+                    await _socket.DisconnectAsync();
+                });
+            }
+            catch
+            {
+
+            }
+
         }
     }
 
