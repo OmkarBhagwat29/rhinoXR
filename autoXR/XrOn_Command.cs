@@ -35,10 +35,10 @@ namespace autoXR
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
+
             _socket = new SocketIOClient.SocketIO(host);
 
             RhinoDoc.AddRhinoObject += RhinoDoc_AddRhinoObject;
-            RhinoDoc.LayerTableEvent += RhinoDoc_LayerTableEvent;
             RhinoDoc.ModifyObjectAttributes += RhinoDoc_ModifyObjectAttributes;
             RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
             RhinoDoc.BeforeTransformObjects += RhinoDoc_BeforeTransformObjects;
@@ -47,8 +47,8 @@ namespace autoXR
 
             RhinoDoc.ActiveDocumentChanged += RhinoDoc_ActiveDocumentChanged;
           
-            SetBytes();
-            EmitBuffer();
+            //SetBytes();
+            //EmitBuffer();
 
             RhinoApp.WriteLine("XR is ON!!!");
 

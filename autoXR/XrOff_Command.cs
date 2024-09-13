@@ -8,6 +8,7 @@ namespace autoXR
 {
     public class XrOff_Command : SocketCommand
     {
+
         public XrOff_Command()
         {
             Instance = this;
@@ -23,7 +24,6 @@ namespace autoXR
             Disconnect();
 
             RhinoDoc.AddRhinoObject -= RhinoDoc_AddRhinoObject;
-            RhinoDoc.LayerTableEvent -= RhinoDoc_LayerTableEvent;
             RhinoDoc.ModifyObjectAttributes -= RhinoDoc_ModifyObjectAttributes;
             RhinoDoc.DeleteRhinoObject -= RhinoDoc_DeleteRhinoObject;
             RhinoDoc.BeforeTransformObjects -= RhinoDoc_BeforeTransformObjects;

@@ -6,10 +6,11 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Rhino.DocObjects;
 
 public abstract class SocketCommand : Command
 {
-    public static string host = "http://13.200.235.95:3001";
+    public static string host = "http://localhost:3001";
     //15.206.149.105
     //ssh -i om.pem ubuntu@15.206.149.105
     //pkill -f "nodemon index.js"
@@ -17,46 +18,65 @@ public abstract class SocketCommand : Command
     public static byte[] buffer;
     public const string emmitKey = "doc";
 
-    public static string filePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".3dm");
+    static bool _deleteObjectRegistered = false; 
 
-    public static void SetBytes()
+
+    public static string filePath = Path.Combine(@"C:\Users\Om\OneDrive\Desktop\RhTest", Guid.NewGuid().ToString() + ".3dm");
+
+    protected SocketCommand()
     {
-        if (RhinoDoc.ActiveDoc == null)
+        RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
+
+        _deleteObjectRegistered = true;
+    }
+
+
+    static void SetBytes(RhinoObjectEventArgs e)
+    {
+        // e.TheObject
+        if (File3dm.WriteOneObject(filePath, e.TheObject.Geometry))
         {
-            buffer = null;
-            return;
+            var rhFile = File3dm.Read(filePath);
+            buffer = rhFile.ToByteArray();
         }
 
-        // Ensure that the document is saved
-       var saved = RhinoDoc
-            .ActiveDoc
-            .Write3dmFile(filePath, new FileWriteOptions { SuppressDialogBoxes = true });
+    }
 
-        if (!saved)
+    static void SetBytes(RhinoModifyObjectAttributesEventArgs e)
+    {
+        // get the object
+        e.RhinoObject.Attributes = e.NewAttributes;
+        if (File3dm.WriteOneObject(filePath, e.RhinoObject.Geometry))
         {
-            buffer = null;
-            return;
+            var rhFile = File3dm.Read(filePath);
+            buffer = rhFile.ToByteArray();
         }
 
-        // Read the saved file into a byte array
-        var rhFile = File3dm.Read(filePath);
-        buffer = rhFile.ToByteArray();
     }
 
     public static void EmitBuffer(string emitKeyName = emmitKey)
     {
         if (buffer != null)
         {
+            try
+            {
+                Task.Run(async () => {
+                    await _socket.ConnectAsync();
+                    if (_socket.Connected)
+                    {
+                        string base64Data = Convert.ToBase64String(buffer);
+                        await _socket.EmitAsync(emitKeyName, base64Data);
+                        RhinoApp.WriteLine($"Geometry Sent!");
 
-            Task.Run(async () => { 
-                await _socket.ConnectAsync();
-                if (_socket.Connected)
-                {
-                    string base64Data = Convert.ToBase64String(buffer);
-                    await _socket.EmitAsync(emitKeyName, base64Data);
-                    RhinoApp.WriteLine($"Geometry Sent!");
-                }
-            });
+                        File.Delete(filePath);
+                    }
+                });
+            }
+            catch (Exception e)
+            {
+
+                RhinoApp.WriteLine(e.Message);
+            }
 
             _socket.On("offMe", async (data) => {
 
@@ -86,36 +106,36 @@ public abstract class SocketCommand : Command
 
     public static void RhinoDoc_AddRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
     {
-        SetBytes();
+        SetBytes(e);
 
         EmitBuffer();
 
-        RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
-    }
-
-    public static void RhinoDoc_LayerTableEvent(object sender, Rhino.DocObjects.Tables.LayerTableEventArgs e)
-    {
-        SetBytes();
-        EmitBuffer();
-
+        if (!_deleteObjectRegistered)
+        {
+            RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
+            _deleteObjectRegistered = true;
+        }
     }
 
     public static void RhinoDoc_ModifyObjectAttributes(object sender, Rhino.DocObjects.RhinoModifyObjectAttributesEventArgs e)
     {
-        SetBytes();
-        EmitBuffer();
+
+            SetBytes(e);
+            EmitBuffer();
+
     }
 
     public static void RhinoDoc_DeleteRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
     {
-        SetBytes();
-        EmitBuffer();
+            SetBytes(e);
+            EmitBuffer();
     }
 
     public static void RhinoDoc_BeforeTransformObjects(object sender,
         Rhino.DocObjects.RhinoTransformObjectsEventArgs e)
     {
         RhinoDoc.DeleteRhinoObject -= RhinoDoc_DeleteRhinoObject;
+        _deleteObjectRegistered = false;
 
     }
 }
