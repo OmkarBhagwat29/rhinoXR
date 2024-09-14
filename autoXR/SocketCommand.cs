@@ -8,6 +8,8 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using Rhino.DocObjects;
 using System.Linq;
+using Rhino.Display;
+using autoXR;
 
 public abstract class SocketCommand : Command
 {
@@ -16,39 +18,31 @@ public abstract class SocketCommand : Command
     //ssh -i om.pem ubuntu@15.206.149.105
     //pkill -f "nodemon index.js"
     public static SocketIOClient.SocketIO _socket;
-    public static string JsonGeometry = null;
-    public static string JsonAttributes = null;
+
+    //public static string JsonAttributes = null;
 
     public const string geometryAddKey = "geometry_added";
+    public const string geometryDeleteKey = "geometry_delete";
 
-
-    static bool _deleteObjectRegistered = false; 
+    static bool _deleteObjectRegistered = false;
 
 
     public static string filePath = Path.Combine(@"C:\Users\Om\OneDrive\Desktop\RhTest", Guid.NewGuid().ToString() + ".3dm");
 
+    static CustomXRDisplay _cDisplay;
     protected SocketCommand()
     {
         RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
+
+        _cDisplay = new CustomXRDisplay();
 
         _deleteObjectRegistered = true;
     }
 
 
-    static void SetBytes(RhinoObjectEventArgs e)
+    public static void EmitBuffer(string emitKey, string jsonObjString)
     {
-        // e.TheObject
-        SerializationOptions options = new SerializationOptions()
-        { 
-        };
-        JsonGeometry = e.TheObject.Geometry.ToJSON(options);
-        JsonAttributes = e.TheObject.Attributes.ToJSON(options);
-
-    }
-
-    public static void EmitBuffer(string emitKeyName = geometryAddKey)
-    {
-        if (JsonGeometry != null)
+        if (jsonObjString != null)
         {
 
             try
@@ -58,15 +52,7 @@ public abstract class SocketCommand : Command
                     if (_socket.Connected)
                     {
 
-                        if (JsonAttributes != null)
-                        {
-                            await _socket.EmitAsync(emitKeyName, JsonGeometry + "_AUTO_" + JsonAttributes);
-                        }
-                        else
-                        {
-                            await _socket.EmitAsync(emitKeyName, JsonGeometry);
-                        }
-
+                            await _socket.EmitAsync(emitKey, jsonObjString);
 
 
                         RhinoApp.WriteLine($"Geometry Sent!");
@@ -115,11 +101,12 @@ public abstract class SocketCommand : Command
 
     }
 
-    public static void RhinoDoc_AddRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
+    public static void RhinoDoc_AddRhinoObject(object sender, RhinoObjectEventArgs e)
     {
-        SetBytes(e);
+        _cDisplay.Enabled = true;
 
-        EmitBuffer();
+        _cDisplay.RhObjAdded = e.TheObject;
+
 
         if (!_deleteObjectRegistered)
         {
@@ -138,13 +125,15 @@ public abstract class SocketCommand : Command
 
     public static void RhinoDoc_DeleteRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
     {
-            //SetBytes(e);
-            //EmitBuffer();
+        var id = e.ObjectId.ToString();
+        EmitBuffer(geometryDeleteKey,id);
     }
 
     public static void RhinoDoc_BeforeTransformObjects(object sender,
         Rhino.DocObjects.RhinoTransformObjectsEventArgs e)
     {
+
+
         RhinoDoc.DeleteRhinoObject -= RhinoDoc_DeleteRhinoObject;
         _deleteObjectRegistered = false;
 
