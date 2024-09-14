@@ -11,6 +11,7 @@ using System.Linq;
 using Rhino.Display;
 using autoXR;
 using System.Collections.Generic;
+using System.Numerics;
 
 public abstract class SocketCommand : Command
 {
@@ -25,17 +26,14 @@ public abstract class SocketCommand : Command
     public const string geometryAddKey = "geometry_added";
     public const string geometryDeleteKey = "geometry_delete";
 
-    static bool _deleteObjectRegistered = false;
-
 
     static CustomXRDisplay _cDisplay;
     protected SocketCommand()
     {
-        RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
+        // RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
 
         _cDisplay = new CustomXRDisplay();
 
-        _deleteObjectRegistered = true;
     }
 
 
@@ -46,19 +44,19 @@ public abstract class SocketCommand : Command
 
             try
             {
-                Task.Run(async () => {
+
+                Task.Run(async () =>
+                {
                     await _socket.ConnectAsync();
                     if (_socket.Connected)
                     {
 
-                         await _socket.EmitAsync(emitKey, jsonObjStrings);
+                        await _socket.EmitAsync(emitKey, jsonObjStrings);
 
                         RhinoApp.WriteLine($"Geometry Sent!");
 
                     }
                 });
-
-                _cDisplay.ObjectsAdded.Clear();
             }
             catch (Exception e)
             {
@@ -68,7 +66,8 @@ public abstract class SocketCommand : Command
 
             try
             {
-                _socket.On("offMe", async (data) => {
+                _socket.On("offMe", async (data) =>
+                {
 
                     if (!_socket.Connected)
                         return;
@@ -86,56 +85,77 @@ public abstract class SocketCommand : Command
         }
     }
 
+
+    public static async Task EmitBufferAsync(string emitKey, object jsonObjectString)
+    {
+        try
+        {
+            if (jsonObjectString == null)
+                return;
+
+            await _socket.ConnectAsync();
+            if (_socket.Connected)
+            {
+                await _socket.EmitAsync(emitKey, jsonObjectString);
+            }
+
+        }
+        catch
+        {
+
+        }
+    }
+
     public static void Disconnect()
     {
-        if(_socket == null ) {
+        if (_socket == null)
+        {
             return;
         }
 
-        Task.Run(async () => { await _socket.DisconnectAsync();
+        Task.Run(async () =>
+        {
+            await _socket.DisconnectAsync();
             if (!_socket.Connected)
             {
                 RhinoApp.WriteLine("Disconnected!!!");
-            } });
+            }
+        });
 
     }
 
     public static void RhinoDoc_AddRhinoObject(object sender, RhinoObjectEventArgs e)
     {
+        // Wait for RhinoDoc_DeleteRhinoObject to complete
+
         _cDisplay.Enabled = true;
 
-        var jsonObjectString = e.TheObject.Geometry.ToString() + "_AUTO_" + e.ObjectId.ToString();
+        _cDisplay.ObjectsAdded.Add(e.TheObject);
 
-        _cDisplay.ObjectsAdded.Add(jsonObjectString);
-
-        if (!_deleteObjectRegistered)
-        {
-            RhinoDoc.DeleteRhinoObject += RhinoDoc_DeleteRhinoObject;
-            _deleteObjectRegistered = true;
-        }
     }
 
     public static void RhinoDoc_ModifyObjectAttributes(object sender, Rhino.DocObjects.RhinoModifyObjectAttributesEventArgs e)
     {
 
-            //SetBytes(e);
-            //EmitBuffer();
+        //SetBytes(e);
+        //EmitBuffer();
 
     }
 
-    public static void RhinoDoc_DeleteRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
+
+    public static async void RhinoDoc_DeleteRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
     {
         var id = e.ObjectId.ToString();
-        EmitBuffer(geometryDeleteKey,id);
+
+        // Reset the TaskCompletionSource
+
+        await EmitBufferAsync(geometryDeleteKey, id);
+
     }
 
-    public static void RhinoDoc_BeforeTransformObjects(object sender,
-        Rhino.DocObjects.RhinoTransformObjectsEventArgs e)
+    public static void RhinoDoc_BeforeTransformObjects(object sender, RhinoTransformObjectsEventArgs e)
     {
-
-
-        RhinoDoc.DeleteRhinoObject -= RhinoDoc_DeleteRhinoObject;
-        _deleteObjectRegistered = false;
-
+        
     }
+
 }

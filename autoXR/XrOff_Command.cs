@@ -26,7 +26,7 @@ namespace autoXR
             RhinoDoc.AddRhinoObject -= RhinoDoc_AddRhinoObject;
             RhinoDoc.ModifyObjectAttributes -= RhinoDoc_ModifyObjectAttributes;
             RhinoDoc.DeleteRhinoObject -= RhinoDoc_DeleteRhinoObject;
-            RhinoDoc.BeforeTransformObjects -= RhinoDoc_BeforeTransformObjects;
+           // RhinoDoc.BeforeTransformObjects -= RhinoDoc_BeforeTransformObjects;
 
             RhinoApp.WriteLine("XR is OFF!!!");
 

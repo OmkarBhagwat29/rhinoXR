@@ -55,7 +55,6 @@ namespace autoXR
         }
 
 
-
         private void RhinoDoc_ActiveDocumentChanged(object sender, DocumentEventArgs e)
         {
             Disconnect();
