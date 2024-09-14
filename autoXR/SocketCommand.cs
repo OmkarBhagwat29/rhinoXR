@@ -10,6 +10,7 @@ using Rhino.DocObjects;
 using System.Linq;
 using Rhino.Display;
 using autoXR;
+using System.Collections.Generic;
 
 public abstract class SocketCommand : Command
 {
@@ -27,8 +28,6 @@ public abstract class SocketCommand : Command
     static bool _deleteObjectRegistered = false;
 
 
-    public static string filePath = Path.Combine(@"C:\Users\Om\OneDrive\Desktop\RhTest", Guid.NewGuid().ToString() + ".3dm");
-
     static CustomXRDisplay _cDisplay;
     protected SocketCommand()
     {
@@ -40,9 +39,9 @@ public abstract class SocketCommand : Command
     }
 
 
-    public static void EmitBuffer(string emitKey, string jsonObjString)
+    public static void EmitBuffer(string emitKey, object jsonObjStrings)
     {
-        if (jsonObjString != null)
+        if (jsonObjStrings != null)
         {
 
             try
@@ -52,14 +51,14 @@ public abstract class SocketCommand : Command
                     if (_socket.Connected)
                     {
 
-                            await _socket.EmitAsync(emitKey, jsonObjString);
-
+                         await _socket.EmitAsync(emitKey, jsonObjStrings);
 
                         RhinoApp.WriteLine($"Geometry Sent!");
 
-                        File.Delete(filePath);
                     }
                 });
+
+                _cDisplay.ObjectsAdded.Clear();
             }
             catch (Exception e)
             {
@@ -105,8 +104,9 @@ public abstract class SocketCommand : Command
     {
         _cDisplay.Enabled = true;
 
-        _cDisplay.RhObjAdded = e.TheObject;
+        var jsonObjectString = e.TheObject.Geometry.ToString() + "_AUTO_" + e.ObjectId.ToString();
 
+        _cDisplay.ObjectsAdded.Add(jsonObjectString);
 
         if (!_deleteObjectRegistered)
         {
