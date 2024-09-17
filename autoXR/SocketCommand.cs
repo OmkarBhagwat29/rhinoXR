@@ -132,6 +132,7 @@ public abstract class SocketCommand : Command
 
         _cDisplay.ObjectsAdded.Add(e.TheObject);
 
+        _isTransforming = false;
     }
 
     public static void RhinoDoc_ModifyObjectAttributes(object sender, Rhino.DocObjects.RhinoModifyObjectAttributesEventArgs e)
@@ -145,6 +146,9 @@ public abstract class SocketCommand : Command
 
     public static async void RhinoDoc_DeleteRhinoObject(object sender, Rhino.DocObjects.RhinoObjectEventArgs e)
     {
+        if (_isTransforming)
+            return;
+
         var id = e.ObjectId.ToString();
 
         // Reset the TaskCompletionSource
@@ -153,9 +157,10 @@ public abstract class SocketCommand : Command
 
     }
 
+    static bool _isTransforming = false;
     public static void RhinoDoc_BeforeTransformObjects(object sender, RhinoTransformObjectsEventArgs e)
     {
-        
+        _isTransforming = true;
     }
 
 }
